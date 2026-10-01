@@ -5,6 +5,7 @@ import {
 import { drawerTotal, hasSpace, refundOf } from '../sim/board';
 import { unitRange } from '../sim/combat';
 import { pickTarget } from '../sim/auto';
+import { canSkipWave } from '../sim/waves';
 import { craftable, recipeStatus } from '../sim/economy';
 import type { Game } from '../sim/game';
 import { EMPTY, KIND_COUNT, canMerge, isMythic, kindElement, kindOf, kindTier, mythicIndex, mythicKind } from '../sim/kinds';
@@ -51,6 +52,8 @@ export class UI {
     wave: $('hud-wave').querySelector('b')!,
     next: $('hud-next').querySelector('b')!,
     nextEl: $('hud-next').querySelector('.el') as HTMLElement,
+    nextBtn: $<HTMLButtonElement>('hud-next'),
+    nextLabel: $('hud-next').querySelector('.label') as HTMLElement,
     meterFill: $('enemy-meter').querySelector('.meter-fill') as HTMLElement,
     meterText: $('enemy-meter').querySelector('span')!,
     boss: $('hud-boss'),
@@ -89,6 +92,9 @@ export class UI {
     $('btn-upgrade').addEventListener('click', () => this.toggleSheet('upgrade'));
     this.el.craft.addEventListener('click', () => this.toggleSheet('craft'));
     $('btn-pause').addEventListener('click', () => this.openSheet('pause'));
+    this.el.nextBtn.addEventListener('click', () => {
+      if (canSkipWave(this.game().s)) actions.command({ type: 'skipWave' });
+    });
     this.el.auto.addEventListener('click', () => {
       const a = this.meta.auto;
       a.enabled = !a.enabled;
@@ -126,6 +132,9 @@ export class UI {
     const s = g.s;
     setText(this.el.wave, String(s.wave));
     setText(this.el.next, `${Math.max(0, Math.ceil(s.waveTimer))}s`);
+    const skippable = canSkipWave(s);
+    this.el.nextBtn.classList.toggle('ready', skippable);
+    setText(this.el.nextLabel, skippable ? '▶ 바로 시작' : '다음');
     setText(this.el.nextEl, ELEMENT_ICONS[s.nextElement]);
     const ratio = Math.min(1, s.enemyCount / LOSE_ENEMY_COUNT);
     const width = `${(ratio * 100).toFixed(0)}%`;
@@ -353,6 +362,7 @@ export class UI {
       ['summon', '자동 소환'],
       ['merge', '자동 합성·조합'],
       ['place', '자동 배치'],
+      ['skip', '자동 다음 웨이브'],
     ] as const).map(([key, label]) => {
       const btn = h('button', { className: 'btn', text: `${label} ${this.meta.auto[key] ? '켬' : '끔'}` });
       btn.addEventListener('click', () => {
@@ -377,6 +387,7 @@ export class UI {
       '합성: 같은 속성·같은 단계 도형을 끌어서 겹치면 다음 단계가 돼요. ▲→■→⬟→⬢→●',
       '이동: 빈 칸으로 끌면 이동, 다른 도형 위로 끌면 자리를 바꿔요. 서랍으로 끌면 보관해요.',
       '판매: 도형을 탭한 뒤 판매 버튼을 눌러요.',
+      '웨이브: 적을 모두 잡으면 위의 ▶ 바로 시작으로 대기 없이 다음 웨이브를 불러요.',
       '상성: 불>바람>땅>물>불, 빛↔암. 다음 웨이브 속성이 위에 보여요.',
       `패배: 적이 ${LOSE_ENEMY_COUNT}마리 쌓이거나, 보스를 60초 안에 못 잡으면 끝나요.`,
     ];

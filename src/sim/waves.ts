@@ -95,6 +95,15 @@ export function checkWaveClear(w: World, wave: number): void {
   w.emit({ type: 'waveClear', wave, sp: WAVE_CLEAR_SP });
 }
 
+/** 필드에 적이 없고 스폰할 적도 남지 않았으면 다음 웨이브를 바로 시작할 수 있다 */
+export const canSkipWave = (s: World['s']) => !s.over && s.enemyCount === 0 && s.spawnLeft === 0;
+
+export function skipWave(w: World): boolean {
+  if (!canSkipWave(w.s)) return w.reject('적을 모두 처치해야 넘어갈 수 있어요');
+  w.s.waveTimer = 0; // 다음 step에서 웨이브 시작
+  return true;
+}
+
 export function checkOverrun(w: World): void {
   if (w.s.enemyCount >= LOSE_ENEMY_COUNT) gameOver(w, 'overrun');
 }

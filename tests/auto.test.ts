@@ -85,6 +85,16 @@ describe('자동 모드', () => {
     expect(drawerTotal(g.s)).toBe(0); // 남은 하나는 안쪽 칸으로
   });
 
+  it('적이 없으면 자동으로 다음 웨이브, 끄면 넘기지 않는다', () => {
+    const g = game();
+    autoTurn(g, on({ skip: false }));
+    g.step();
+    expect(g.s.wave).toBe(0);
+    autoTurn(g, on());
+    g.step();
+    expect(g.s.wave).toBe(1);
+  });
+
   it('목표 자동 선택: 완성에 가장 가까운 신화', () => {
     const g = game();
     g.s.field[0] = fire4;

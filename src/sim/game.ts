@@ -7,7 +7,7 @@ import {
   ENEMY_POOL, PROJECTILE_POOL, STATE_VERSION, createState, newEnemy, newProjectile,
   type Command, type Enemy, type Fx, type GameEvent, type State, type World,
 } from './state';
-import { checkOverrun, stepWaves } from './waves';
+import { checkOverrun, skipWave, stepWaves } from './waves';
 
 const EVENT_CAP = 256;
 const FX_CAP = 512;
@@ -56,6 +56,7 @@ export class Game implements World {
       case 'gamble': return gamble(this, c.option);
       case 'upgrade': return upgrade(this, c.element);
       case 'craft': return craft(this, c.mythic);
+      case 'skipWave': return skipWave(this);
     }
     return false;
   }

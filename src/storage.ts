@@ -65,7 +65,7 @@ export function loadMeta(): Meta {
     const a = r.auto;
     if (typeof a === 'object' && a !== null) {
       const o = a as Record<string, unknown>;
-      for (const k of ['enabled', 'summon', 'merge', 'place'] as const) if (typeof o[k] === 'boolean') meta.auto[k] = o[k] as boolean;
+      for (const k of ['enabled', 'summon', 'merge', 'place', 'skip'] as const) if (typeof o[k] === 'boolean') meta.auto[k] = o[k] as boolean;
       if (Number.isInteger(o.target) && (o.target as number) >= -1 && (o.target as number) < MYTHICS.length) meta.auto.target = o.target as number;
     }
   } catch {

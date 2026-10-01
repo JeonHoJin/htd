@@ -120,7 +120,8 @@ export type Command =
   | { type: 'sell'; slot: Slot }
   | { type: 'gamble'; option: number }
   | { type: 'upgrade'; element: number }
-  | { type: 'craft'; mythic: number };
+  | { type: 'craft'; mythic: number }
+  | { type: 'skipWave' };
 
 /** cell -1 = 서랍 */
 export type GameEvent =

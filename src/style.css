@@ -105,7 +105,16 @@ button:disabled {
   animation: pulse 1s infinite alternate;
 }
 #hud-next {
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
   flex: 1;
+}
+#hud-next.ready {
+  border-color: var(--good);
+  color: var(--good);
+  box-shadow: 0 0 12px rgba(78, 230, 160, 0.4);
+  animation: pulse 0.9s infinite alternate;
 }
 #hud-next .el {
   margin-left: 2px;

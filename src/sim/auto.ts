@@ -4,6 +4,7 @@ import { recipeStatus } from './economy';
 import type { Game } from './game';
 import { EMPTY, KIND_COUNT, canMerge, kindElement, kindOf, kindTier } from './kinds';
 import type { State } from './state';
+import { canSkipWave } from './waves';
 
 /** 자동 모드 설정. 플레이어와 같은 명령만 내리므로 sim 규칙은 그대로다. */
 export interface AutoSettings {
@@ -11,11 +12,13 @@ export interface AutoSettings {
   summon: boolean;
   merge: boolean; // 합성 + 조합
   place: boolean;
+  /** 적을 모두 처치하면 대기 시간 없이 다음 웨이브 */
+  skip: boolean;
   /** 목표 신화. -1 = 완성에 가장 가까운 신화 */
   target: number;
 }
 
-export const defaultAuto = (): AutoSettings => ({ enabled: false, summon: true, merge: true, place: true, target: -1 });
+export const defaultAuto = (): AutoSettings => ({ enabled: false, summon: true, merge: true, place: true, skip: true, target: -1 });
 
 function ownedCounts(s: State): number[] {
   const count = s.drawer.slice();
@@ -157,5 +160,6 @@ function autoSteps(g: Game, cfg: AutoSettings): void {
   if (cfg.summon) run(() => s.sp >= SUMMON_COST && hasSpace(s) && g.command({ type: 'summon' }));
   mergeAll();
   placeAll();
+  if (cfg.skip && canSkipWave(s)) g.command({ type: 'skipWave' });
 }
 

@@ -308,6 +308,32 @@ describe('웨이브와 패배', () => {
     expect(g.s.sp - sp0).toBeGreaterThanOrEqual(WAVE_CLEAR_SP);
   });
 
+  it('적이 남아 있으면 다음 웨이브로 넘길 수 없다', () => {
+    const g = game();
+    runSeconds(g, FIRST_WAVE_DELAY + 1);
+    expect(g.s.enemyCount).toBeGreaterThan(0);
+    expect(g.command({ type: 'skipWave' })).toBe(false);
+  });
+
+  it('스폰이 끝나고 적을 모두 처치하면 다음 웨이브를 바로 시작한다', () => {
+    const g = game();
+    runSeconds(g, FIRST_WAVE_DELAY + 11); // 웨이브 1 스폰 완료
+    for (const e of g.s.enemies) if (e.alive) damage(g, e, 1e9, -1);
+    g.step();
+    expect(g.s.wave).toBe(1);
+    expect(g.command({ type: 'skipWave' })).toBe(true);
+    g.step();
+    expect(g.s.wave).toBe(2);
+    expect(g.s.waveTimer).toBeGreaterThan(WAVE_INTERVAL - 0.1);
+  });
+
+  it('첫 웨이브 전에도 바로 시작할 수 있다', () => {
+    const g = game();
+    expect(g.command({ type: 'skipWave' })).toBe(true);
+    g.step();
+    expect(g.s.wave).toBe(1);
+  });
+
   it('적이 100마리 이상이면 패배', () => {
     const g = game();
     for (let i = 0; i < LOSE_ENEMY_COUNT; i++) Object.assign(g.s.enemies[i], { alive: true, hp: 1e9, speed: 1 });
