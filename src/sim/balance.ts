@@ -24,11 +24,11 @@ export const MAX_TIER = 5;
 export const TIER_NAMES = ['', '삼각', '사각', '오각', '육각', '원'];
 
 // 경제
-export const START_SP = 100;
+export const START_SP = 500;
 export const SUMMON_COST = 50;
 export const SUMMON_TIER2_CHANCE = 0.05;
-export const SELL_REFUND = [0, 5, 12, 28, 60, 130];
-export const MYTHIC_SELL_REFUND = 200;
+export const SELL_REFUND = [0, 25, 60, 140, 300, 650];
+export const MYTHIC_SELL_REFUND = 1000;
 /** 웨이브의 적(보스 웨이브는 보스)을 모두 처치하면 지급 */
 export const WAVE_CLEAR_SP = 100;
 export const killSp = (wave: number) => 1 + Math.floor(wave / 8);
@@ -43,7 +43,7 @@ export const STONES_PER_BOSS = 2;
 export const STONES_EVERY_N_WAVES = 5;
 
 export const UPGRADE_MAX = 30;
-export const upgradeCost = (level: number) => 30 + 20 * level;
+export const upgradeCost = (level: number) => 150 + 100 * level;
 export const upgradeMult = (level: number) => 1 + 0.12 * level;
 
 // 상성: 불 > 바람 > 땅 > 물 > 불, 빛 <-> 암

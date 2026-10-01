@@ -4,6 +4,7 @@ import {
 } from '../sim/balance';
 import { drawerTotal, hasSpace, refundOf } from '../sim/board';
 import { unitRange } from '../sim/combat';
+import { pickTarget } from '../sim/auto';
 import { craftable, recipeStatus } from '../sim/economy';
 import type { Game } from '../sim/game';
 import { EMPTY, KIND_COUNT, canMerge, isMythic, kindElement, kindOf, kindTier, mythicIndex, mythicKind } from '../sim/kinds';
@@ -19,6 +20,7 @@ export interface UiActions {
   setPaused(paused: boolean): void;
   setSpeed(speed: 1 | 2): void;
   setFps(on: boolean): void;
+  saveMeta(): void;
   newGame(): void;
   flashCell(cell: number): void;
 }
@@ -57,6 +59,7 @@ export class UI {
     stones: $('hud-stones').querySelector('b')!,
     kills: $('hud-kills').querySelector('b')!,
     speed: $<HTMLButtonElement>('btn-speed'),
+    auto: $<HTMLButtonElement>('btn-auto'),
     drawerCount: $('drawer-count'),
     drawerList: $('drawer-list'),
     summon: $<HTMLButtonElement>('btn-summon'),
@@ -86,6 +89,13 @@ export class UI {
     $('btn-upgrade').addEventListener('click', () => this.toggleSheet('upgrade'));
     this.el.craft.addEventListener('click', () => this.toggleSheet('craft'));
     $('btn-pause').addEventListener('click', () => this.openSheet('pause'));
+    this.el.auto.addEventListener('click', () => {
+      const a = this.meta.auto;
+      a.enabled = !a.enabled;
+      actions.saveMeta();
+      this.toast(a.enabled ? '자동 모드 켜짐 · 세부 설정은 일시정지 메뉴에서' : '자동 모드 꺼짐', a.enabled ? 'good' : '');
+      this.lastVersion = -1;
+    });
     $('sheet-close').addEventListener('click', () => this.closeSheet());
     this.el.speed.addEventListener('click', () => {
       this.meta.speed = this.meta.speed === 1 ? 2 : 1;
@@ -127,6 +137,7 @@ export class UI {
     setText(this.el.stones, String(s.stones));
     setText(this.el.kills, String(s.kills));
     setText(this.el.speed, `${this.meta.speed}×`);
+    this.el.auto.classList.toggle('on', this.meta.auto.enabled);
     this.el.summon.disabled = s.sp < SUMMON_COST || !hasSpace(s) || s.over;
 
     if (g.version !== this.lastVersion) {
@@ -269,6 +280,24 @@ export class UI {
   private craftSheet(body: HTMLElement): void {
     setText(this.el.sheetTitle, '신화 조합법');
     const s = this.game().s;
+    const auto = this.meta.auto;
+    const target = pickTarget(s, auto);
+    const setTarget = (t: number) => {
+      auto.target = t;
+      this.actions.saveMeta();
+      this.renderSheet();
+    };
+    const autoBtn = h('button', { className: `btn${auto.target < 0 ? ' go' : ''}`, text: auto.target < 0 ? '자동 선택 중' : '자동으로' });
+    autoBtn.addEventListener('click', () => setTarget(-1));
+    body.append(
+      h('div', { className: 'row' }, [
+        h('div', { className: 'grow' }, [
+          h('div', { text: '🎯 자동 모드 목표' }),
+          h('div', { className: 'dim', text: auto.target < 0 ? `완성에 가장 가까운 신화 (지금: ${MYTHICS[target].name})` : `${MYTHICS[target].name} 고정` }),
+        ]),
+        autoBtn,
+      ]),
+    );
     MYTHICS.forEach((m, i) => {
       const status = recipeStatus(s, i);
       const chips = m.recipe.map(([el, tier], j) =>
@@ -277,21 +306,22 @@ export class UI {
           `${ELEMENT_NAMES[el]} ${tier}단계`,
         ]),
       );
-      const btn = h('button', { className: 'btn go', text: '조합', disabled: !status.ready });
-      btn.addEventListener('click', () => this.actions.command({ type: 'craft', mythic: i }));
-      body.append(
-        h('div', { className: 'row' }, [
-          shapeEl(mythicKind(i)),
-          h('div', { className: 'grow' }, [
-            h('div', { text: `${m.name}${this.meta.discovered[i] ? '' : ' · 미발견'}` }),
-            h('div', { className: 'dim', text: PATTERNS[m.pattern] }),
-            h('div', { className: 'chips' }, chips),
-          ]),
-          btn,
+      const craftBtn = h('button', { className: 'btn go', text: '조합', disabled: !status.ready });
+      craftBtn.addEventListener('click', () => this.actions.command({ type: 'craft', mythic: i }));
+      const targetBtn = h('button', { className: 'btn', text: i === target ? '🎯' : '목표' });
+      targetBtn.addEventListener('click', () => setTarget(i));
+      const row = h('div', { className: `row${i === target ? ' target' : ''}` }, [
+        shapeEl(mythicKind(i)),
+        h('div', { className: 'grow' }, [
+          h('div', { text: `${m.name}${this.meta.discovered[i] ? '' : ' · 미발견'}` }),
+          h('div', { className: 'dim', text: PATTERNS[m.pattern] }),
+          h('div', { className: 'chips' }, chips),
         ]),
-      );
+        h('div', { className: 'sel-actions' }, [targetBtn, craftBtn]),
+      ]);
+      body.append(row);
     });
-    body.append(h('div', { className: 'dim', text: '재료는 필드에서 먼저, 모자라면 서랍에서 가져와요' }));
+    body.append(h('div', { className: 'dim', text: '재료는 필드에서 먼저, 모자라면 서랍에서 가져와요. 자동 모드는 목표 재료를 보호하며 합성해요.' }));
   }
 
   private pauseSheet(body: HTMLElement): void {
@@ -319,7 +349,26 @@ export class UI {
       }
       this.actions.newGame();
     });
-    body.append(resume, speed, fps, restart, this.helpCard());
+    const toggles = ([
+      ['summon', '자동 소환'],
+      ['merge', '자동 합성·조합'],
+      ['place', '자동 배치'],
+    ] as const).map(([key, label]) => {
+      const btn = h('button', { className: 'btn', text: `${label} ${this.meta.auto[key] ? '켬' : '끔'}` });
+      btn.addEventListener('click', () => {
+        this.meta.auto[key] = !this.meta.auto[key];
+        this.actions.saveMeta();
+        setText(btn, `${label} ${this.meta.auto[key] ? '켬' : '끔'}`);
+      });
+      return btn;
+    });
+    const autoCard = h('div', { className: 'row' }, [
+      h('div', { className: 'grow' }, [
+        h('div', { text: `자동 모드 (상단 AUTO 버튼) · ${this.meta.auto.enabled ? '켜짐' : '꺼짐'}` }),
+        h('div', { className: 'chips' }, toggles),
+      ]),
+    ]);
+    body.append(resume, speed, fps, autoCard, restart, this.helpCard());
   }
 
   private helpCard(): HTMLElement {
@@ -364,7 +413,7 @@ export class UI {
         case 'merge':
         case 'summon':
           this.actions.flashCell(e.cell);
-          if (e.type === 'summon' && e.cell < 0) this.toast('필드가 가득 차서 서랍으로 들어갔어요');
+          if (e.type === 'summon' && e.cell < 0 && !this.meta.auto.enabled) this.toast('필드가 가득 차서 서랍으로 들어갔어요');
           break;
         case 'craft':
           this.actions.flashCell(e.cell);

@@ -119,6 +119,21 @@ button:disabled {
   font-size: 13px;
   font-weight: 700;
 }
+.icon-btn.auto {
+  width: 52px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--dim);
+}
+.icon-btn.auto.on {
+  color: #0b0d17;
+  background: var(--good);
+  border-color: var(--good);
+  box-shadow: 0 0 12px rgba(78, 230, 160, 0.5);
+}
+.row.target {
+  border-color: var(--good);
+}
 .meter {
   position: relative;
   flex: 1;

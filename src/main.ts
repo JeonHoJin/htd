@@ -2,6 +2,7 @@ import 'pixi.js/unsafe-eval'; // CSP에서 eval 없이 동작하게 하는 폴�
 import './style.css';
 import { installErrorBoundary } from './errors';
 import { Input } from './input';
+import { autoTurn } from './sim/auto';
 import { Renderer } from './render/renderer';
 import { DT } from './sim/balance';
 import { Game } from './sim/game';
@@ -11,6 +12,8 @@ import { UI } from './ui/ui';
 
 const MAX_STEPS_PER_FRAME = 12;
 const AUTOSAVE_MS = 10_000;
+/** 자동 모드 판단 주기 (게임 시간 0.5초) */
+const AUTO_EVERY_STEPS = 30;
 
 function frameBust(): boolean {
   if (window.top === window.self) return false;
@@ -63,6 +66,7 @@ async function start(): Promise<void> {
       speed = s;
       saveMeta(meta);
     },
+    saveMeta: () => saveMeta(meta),
     setFps: (on) => {
       fpsEl.hidden = !on;
       saveMeta(meta);
@@ -89,11 +93,15 @@ async function start(): Promise<void> {
     (c) => game.command(c),
   );
 
-  // iOS는 백그라운드로 간 PWA를 자주 종료한다: 숨겨질 때 저장하고, 돌아오면 일시정지 상태로
+  // iOS는 백그라운드로 간 PWA를 자주 종료한다: 숨겨질 때 저장하고,
+  // 실제로 백그라운드에 있다 돌아오면(1초 이상) 일시정지 상태로 보여준다
+  let hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+      hiddenAt = performance.now();
       saveRun();
-      if (!game.s.over) ui.openSheet('pause');
+    } else if (hiddenAt && performance.now() - hiddenAt > 1000 && !game.s.over && !ui.sheetOpen) {
+      ui.openSheet('pause');
     }
   });
   window.addEventListener('pagehide', saveRun);
@@ -114,6 +122,7 @@ async function start(): Promise<void> {
       let n = 0;
       while (acc >= DT && n < MAX_STEPS_PER_FRAME) {
         game.step();
+        if (meta.auto.enabled && game.s.tick % AUTO_EVERY_STEPS === 0 && !input.busy) autoTurn(game, meta.auto);
         acc -= DT;
         n++;
       }

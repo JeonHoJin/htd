@@ -20,6 +20,8 @@ export class Game implements World {
   private events: GameEvent[] = [];
   private fxQueue: Fx[] = [];
   private auraDirty = true;
+  /** 자동 모드가 내린 명령의 거절은 토스트로 보이지 않게 한다 */
+  quiet = false;
 
   constructor(state: State, readonly fxEnabled = true) {
     this.s = state;
@@ -73,7 +75,7 @@ export class Game implements World {
   }
 
   reject(reason: string): false {
-    this.emit({ type: 'reject', reason });
+    if (!this.quiet) this.emit({ type: 'reject', reason });
     return false;
   }
 

@@ -4,10 +4,15 @@ import { h } from './ui/icons';
 export function registerServiceWorker(): void {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
   const url = `${import.meta.env.BASE_URL}sw.js`;
+  let updating = false;
   navigator.serviceWorker
     .register(url, { scope: import.meta.env.BASE_URL })
     .then((reg) => {
-      const offer = (worker: ServiceWorker) => showBanner(() => worker.postMessage('skipWaiting'));
+      const offer = (worker: ServiceWorker) =>
+        showBanner(() => {
+          updating = true;
+          worker.postMessage('skipWaiting');
+        });
       if (reg.waiting && navigator.serviceWorker.controller) offer(reg.waiting);
       reg.addEventListener('updatefound', () => {
         const worker = reg.installing;
@@ -19,10 +24,10 @@ export function registerServiceWorker(): void {
     .catch(() => {
       // 오프라인 지원만 빠질 뿐 게임은 동작한다
     });
-  let reloaded = false;
+  // 첫 설치 때도 clients.claim()으로 controllerchange가 오므로, 사용자가 업데이트를 누른 경우에만 새로고침한다
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return;
-    reloaded = true;
+    if (!updating) return;
+    updating = false;
     location.reload();
   });
 }

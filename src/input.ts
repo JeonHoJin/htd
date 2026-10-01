@@ -41,6 +41,11 @@ export class Input {
     drawerList.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
+  /** 누르거나 드래그하는 중이면 자동 모드가 쉬도록 */
+  get busy(): boolean {
+    return this.press !== null;
+  }
+
   /** 매 프레임: 선택 상태를 렌더러용 view에 반영 */
   sync(): void {
     const sel = this.ui.selection;
