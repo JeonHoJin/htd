@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="theme-color" content="#0b0d17" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="도형 디펜스" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="icons/icon-192.png" />
+    <title>도형 디펜스</title>
+  </head>
+  <body>
+    <div id="app">
+      <header id="hud">
+        <div class="hud-row">
+          <div class="pill" id="hud-wave">웨이브 <b>0</b></div>
+          <div class="pill" id="hud-next">다음 <b>0s</b> <span class="el"></span></div>
+          <button class="icon-btn" id="btn-speed" aria-label="배속">1×</button>
+          <button class="icon-btn" id="btn-pause" aria-label="일시정지">Ⅱ</button>
+        </div>
+        <div class="hud-row">
+          <div id="enemy-meter" class="meter"><div class="meter-fill"></div><span>적 0/100</span></div>
+          <div class="pill boss" id="hud-boss" hidden>보스 <b>60s</b></div>
+        </div>
+        <div class="hud-row">
+          <div class="pill res" id="hud-sp">SP <b>0</b></div>
+          <div class="pill res" id="hud-stones">🍀 <b>0</b></div>
+          <div class="pill res dim" id="hud-kills">처치 <b>0</b></div>
+        </div>
+      </header>
+
+      <main id="stage">
+        <canvas id="board"></canvas>
+      </main>
+
+      <section id="drawer">
+        <div class="drawer-head"><span>서랍</span> <b id="drawer-count">0/20</b></div>
+        <div id="drawer-list"></div>
+      </section>
+
+      <nav id="bar">
+        <div id="selection" hidden>
+          <div class="sel-head">
+            <div class="shape" id="sel-icon"></div>
+            <div class="sel-text">
+              <div id="sel-name"></div>
+              <div id="sel-stats" class="dim"></div>
+            </div>
+          </div>
+          <div class="sel-actions">
+            <button id="sel-merge" class="btn go">합성</button>
+            <button id="sel-sell" class="btn danger">판매</button>
+            <button id="sel-close" class="icon-btn" aria-label="선택 해제">✕</button>
+          </div>
+        </div>
+        <button class="bar-btn" id="btn-gamble"><span class="big">🍀</span><span>도박</span></button>
+        <button class="bar-btn" id="btn-upgrade"><span class="big">⬆</span><span>강화</span></button>
+        <button class="bar-btn primary" id="btn-summon"><span class="big">소환</span><span id="summon-cost">SP 10</span></button>
+        <button class="bar-btn" id="btn-craft"><span class="big">✸</span><span>조합</span></button>
+      </nav>
+
+      <section id="sheet" hidden>
+        <div class="sheet-head"><b id="sheet-title"></b><button class="icon-btn" id="sheet-close" aria-label="닫기">✕</button></div>
+        <div id="sheet-body"></div>
+      </section>
+    </div>
+
+    <div id="ghost" class="shape" hidden></div>
+    <div id="toasts" aria-live="polite"></div>
+    <div id="fps" hidden></div>
+
+    <div id="fatal" hidden>
+      <div class="card">
+        <b>문제가 생겼어요</b>
+        <p class="dim">게임을 다시 불러오거나, 저장된 데이터를 지우고 새로 시작할 수 있어요.</p>
+        <button class="btn" id="fatal-reload">새로고침</button>
+        <button class="btn danger" id="fatal-reset">로컬 데이터 초기화</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

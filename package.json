@@ -13,6 +13,7 @@
     "icons": "node scripts/make-icons.mjs"
   },
   "devDependencies": {
+    "@types/node": "^26.6.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vitest": "^4.1.11"
