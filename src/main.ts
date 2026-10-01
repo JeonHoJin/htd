@@ -14,6 +14,8 @@ const MAX_STEPS_PER_FRAME = 12;
 const AUTOSAVE_MS = 10_000;
 /** 자동 모드 판단 주기 (게임 시간 0.5초) */
 const AUTO_EVERY_STEPS = 30;
+/** style.css의 #rotate 조건과 같아야 한다 */
+const LANDSCAPE = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
 
 function frameBust(): boolean {
   if (window.top === window.self) return false;
@@ -116,7 +118,7 @@ async function start(): Promise<void> {
   const frame = (now: number) => {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
-    const running = !paused && !game.s.over;
+    const running = !paused && !game.s.over && !LANDSCAPE.matches;
     if (running) {
       acc += dt * speed;
       let n = 0;

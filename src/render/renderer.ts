@@ -65,13 +65,15 @@ export class Renderer {
   private constructor(
     private app: Application,
     private tex: Textures,
+    private host: HTMLElement,
   ) {}
 
   static async create(canvas: HTMLCanvasElement, host: HTMLElement): Promise<Renderer> {
     const app = new Application();
     await app.init({
       canvas,
-      resizeTo: host,
+      width: Math.max(1, host.clientWidth),
+      height: Math.max(1, host.clientHeight),
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
       antialias: true,
@@ -80,7 +82,7 @@ export class Renderer {
       autoStart: false,
     });
     app.ticker.stop();
-    const r = new Renderer(app, makeTextures(app.renderer));
+    const r = new Renderer(app, makeTextures(app.renderer), host);
     r.build();
     return r;
   }
@@ -172,6 +174,11 @@ export class Renderer {
   }
 
   private layout(): void {
+    // iOS는 회전 시 resize 이벤트가 레이아웃 갱신보다 먼저 올 수 있다.
+    // 이벤트 대신 매 프레임 실제 영역 크기와 비교해 맞춘다.
+    const hw = Math.max(1, this.host.clientWidth);
+    const hh = Math.max(1, this.host.clientHeight);
+    if (hw !== this.app.screen.width || hh !== this.app.screen.height) this.app.renderer.resize(hw, hh);
     const { width, height } = this.app.screen;
     if (width === this.lastW && height === this.lastH) return;
     this.lastW = width;

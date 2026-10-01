@@ -508,6 +508,28 @@ button:disabled {
   pointer-events: none;
 }
 
+#rotate {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+#rotate .big {
+  font-size: 48px;
+  transform: rotate(-90deg);
+}
+/* 휴대폰 가로: 보드가 너무 작아지므로 세로 전환 안내 (iOS 홈 화면 앱은 방향 고정을 무시한다) */
+@media (orientation: landscape) and (max-height: 500px) {
+  #rotate {
+    display: flex;
+  }
+}
+
 #fatal {
   position: fixed;
   inset: 0;
