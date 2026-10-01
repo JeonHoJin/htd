@@ -1,6 +1,6 @@
 import {
   BOSS_ARMOR_BONUS, BOSS_EVERY, BOSS_HP_MULT, BOSS_SPEED_MULT, BOSS_TIME_LIMIT, DT, ELEMENTS, ENEMY_SPEED,
-  LOSE_ENEMY_COUNT, SPAWN_WINDOW, STONES_EVERY_N_WAVES, WAVE_INTERVAL, WAVE_START_SP, enemiesInWave,
+  LOSE_ENEMY_COUNT, SPAWN_WINDOW, STONES_EVERY_N_WAVES, WAVE_CLEAR_SP, WAVE_INTERVAL, enemiesInWave,
   enemyArmor, enemyHp,
 } from './balance';
 import { pathPoint } from './combat';
@@ -30,6 +30,7 @@ function spawn(w: World, boss: boolean): Enemy | null {
   e.armor = enemyArmor(s.wave) + (boss ? BOSS_ARMOR_BONUS : 0);
   e.speed = ENEMY_SPEED * (boss ? BOSS_SPEED_MULT : 1);
   e.element = s.waveElement;
+  e.wave = s.wave;
   e.boss = boss;
   e.slowT = e.slow = e.stunT = e.burnT = e.burnDps = e.shredT = e.shred = 0;
   s.enemyCount++;
@@ -42,7 +43,6 @@ function startWave(w: World): void {
   s.waveTimer += WAVE_INTERVAL;
   s.waveElement = s.nextElement;
   s.nextElement = randInt(s, ELEMENTS);
-  s.sp += WAVE_START_SP;
   const boss = s.wave % BOSS_EVERY === 0;
   if (s.wave % STONES_EVERY_N_WAVES === 0) {
     s.stones++;
@@ -84,6 +84,15 @@ export function stepWaves(w: World): void {
       s.bossTimer = 0;
     }
   }
+}
+
+/** 처치 직후 호출: 그 웨이브의 적이 더 남지 않았으면 클리어 보상 */
+export function checkWaveClear(w: World, wave: number): void {
+  const s = w.s;
+  if (wave === s.wave && s.spawnLeft > 0) return;
+  for (const e of s.enemies) if (e.alive && e.wave === wave) return;
+  s.sp += WAVE_CLEAR_SP;
+  w.emit({ type: 'waveClear', wave, sp: WAVE_CLEAR_SP });
 }
 
 export function checkOverrun(w: World): void {

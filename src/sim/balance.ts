@@ -25,11 +25,12 @@ export const TIER_NAMES = ['', '삼각', '사각', '오각', '육각', '원'];
 
 // 경제
 export const START_SP = 100;
-export const SUMMON_COST = 10;
+export const SUMMON_COST = 50;
 export const SUMMON_TIER2_CHANCE = 0.05;
 export const SELL_REFUND = [0, 5, 12, 28, 60, 130];
 export const MYTHIC_SELL_REFUND = 200;
-export const WAVE_START_SP = 10;
+/** 웨이브의 적(보스 웨이브는 보스)을 모두 처치하면 지급 */
+export const WAVE_CLEAR_SP = 100;
 export const killSp = (wave: number) => 1 + Math.floor(wave / 8);
 export const bossKillSp = (wave: number) => 40 + 4 * wave;
 

@@ -127,8 +127,10 @@ function validateEnemy(v: unknown): Enemy | null {
     e[k] = r[k] as number;
   }
   if (!isInt(r.id, 0, 2 ** 31) || !isInt(r.element, 0, ELEMENTS - 1) || typeof r.boss !== 'boolean') return null;
+  if (!isInt(r.wave, 0, 2 ** 31)) return null;
   e.id = r.id;
   e.element = r.element;
+  e.wave = r.wave;
   e.boss = r.boss;
   e.alive = true;
   e.px = e.x;

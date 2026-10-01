@@ -387,6 +387,9 @@ export class UI {
         case 'stones':
           this.toast(`🍀 행운석 +${e.amount}`, 'good');
           break;
+        case 'waveClear':
+          this.toast(`웨이브 ${e.wave} 클리어 +${e.sp} SP`, 'good');
+          break;
         case 'bossKilled':
           this.toast('보스 처치!', 'gold');
           break;

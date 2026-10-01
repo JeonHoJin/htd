@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BOSS_EVERY, BOSS_TIME_LIMIT, CELLS, DRAWER_CAP, EARTH, FIRE, LIGHT, DARK, LOSE_ENEMY_COUNT, MYTHICS,
   SUMMON_COST, STEP_HZ, WATER, WIND, affinity, ADVANTAGE, DISADVANTAGE, SELL_REFUND, FIRST_WAVE_DELAY,
-  WAVE_INTERVAL,
+  WAVE_INTERVAL, WAVE_CLEAR_SP,
 } from '../src/sim/balance';
 import { drawerTotal } from '../src/sim/board';
 import { damage } from '../src/sim/combat';
@@ -128,6 +128,7 @@ describe('서랍', () => {
 describe('소환', () => {
   it('비용은 고정이다', () => {
     const g = game();
+    g.s.sp = 1000;
     const sp0 = g.s.sp;
     for (let i = 0; i < 5; i++) g.command({ type: 'summon' });
     expect(g.s.sp).toBe(sp0 - 5 * SUMMON_COST);
@@ -286,6 +287,25 @@ describe('웨이브와 패배', () => {
     expect(g.s.wave).toBe(1);
     runSeconds(g, 1);
     expect(g.s.enemyCount).toBeGreaterThan(0);
+  });
+
+  it('웨이브의 적을 모두 처치하면 한 번만 클리어 보상', () => {
+    const g = game();
+    runSeconds(g, FIRST_WAVE_DELAY + 0.1);
+    expect(g.s.wave).toBe(1);
+    const killAll = () => {
+      for (const e of g.s.enemies) if (e.alive) damage(g, e, 1e9, -1);
+    };
+    killAll(); // 아직 스폰이 남아 있으면 클리어가 아니다
+    expect(events(g, 'waveClear')).toHaveLength(0);
+    runSeconds(g, 12); // 스폰 완료
+    const sp0 = g.s.sp;
+    g.s.enemies.filter((e) => e.alive).slice(1).forEach((e) => damage(g, e, 1e9, -1));
+    expect(events(g, 'waveClear')).toHaveLength(0); // 1마리 남음
+    killAll();
+    const clears = g.drainEvents().filter((e) => e.type === 'waveClear');
+    expect(clears).toHaveLength(1);
+    expect(g.s.sp - sp0).toBeGreaterThanOrEqual(WAVE_CLEAR_SP);
   });
 
   it('적이 100마리 이상이면 패배', () => {

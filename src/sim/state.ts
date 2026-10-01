@@ -1,7 +1,7 @@
 import { CELLS, ELEMENTS, FIRST_WAVE_DELAY, START_SP } from './balance';
 import { EMPTY, KIND_COUNT } from './kinds';
 
-export const STATE_VERSION = 1;
+export const STATE_VERSION = 2;
 export const ENEMY_POOL = 128;
 export const PROJECTILE_POOL = 256;
 
@@ -18,6 +18,8 @@ export interface Enemy {
   armor: number;
   speed: number;
   element: number;
+  /** 스폰된 웨이브 (클리어 판정용) */
+  wave: number;
   boss: boolean;
   slowT: number;
   slow: number;
@@ -70,7 +72,7 @@ export interface State {
 
 export const newEnemy = (): Enemy => ({
   alive: false, id: 0, dist: 0, x: 0, y: 0, px: 0, py: 0, hp: 0, maxHp: 0, armor: 0, speed: 0,
-  element: 0, boss: false, slowT: 0, slow: 0, stunT: 0, burnT: 0, burnDps: 0, shredT: 0, shred: 0,
+  element: 0, wave: 0, boss: false, slowT: 0, slow: 0, stunT: 0, burnT: 0, burnDps: 0, shredT: 0, shred: 0,
 });
 
 export const newProjectile = (): Projectile => ({
@@ -131,6 +133,7 @@ export type GameEvent =
   | { type: 'wave'; wave: number; element: number; boss: boolean }
   | { type: 'stones'; amount: number }
   | { type: 'bossKilled'; wave: number }
+  | { type: 'waveClear'; wave: number; sp: number }
   | { type: 'gameOver'; wave: number; reason: 'overrun' | 'boss' }
   | { type: 'reject'; reason: string };
 

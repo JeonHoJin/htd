@@ -8,6 +8,7 @@ import {
 } from './balance';
 import { EMPTY, isMythic, kindElement, kindTier, mythicIndex } from './kinds';
 import { random } from './rng';
+import { checkWaveClear } from './waves';
 import type { Enemy, World } from './state';
 
 export const cellX = (cell: number) => (cell % COLS) + 0.5;
@@ -111,6 +112,7 @@ function kill(w: World, e: Enemy): void {
   } else {
     s.sp += killSp(s.wave);
   }
+  checkWaveClear(w, e.wave);
   w.fx({ t: 'death', x: e.x, y: e.y, boss: e.boss });
 }
 

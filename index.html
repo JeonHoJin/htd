@@ -7,7 +7,8 @@
     <meta name="theme-color" content="#0b0d17" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- status-bar-style을 두지 않는다: black-translucent면 iOS 26이 화면 상단 ~40pt에 블러를 덮는다.
+         기본값이면 웹뷰가 theme-color로 칠해진 불투명 상태바 아래에서 시작한다. -->
     <meta name="apple-mobile-web-app-title" content="도형 디펜스" />
     <meta name="format-detection" content="telephone=no" />
     <link rel="manifest" href="manifest.webmanifest" />
