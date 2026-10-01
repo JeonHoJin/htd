@@ -114,9 +114,9 @@ describe('자동 모드', () => {
 
   it('자동 모드로 오래 돌려도 상태가 유효하다', () => {
     const g = Game.create(9, false);
-    const cfg = on();
+    const cfg = on({ cards: true });
     for (let t = 0; t < 60 * 60 * 5 && !g.s.over; t++) {
-      if (t % 30 === 0) autoTurn(g, cfg);
+      if (t % 30 === 0 || g.s.cardOffer.length > 0) autoTurn(g, cfg);
       g.step();
     }
     expect(Game.deserialize(g.serialize(), false) ?? g.s.over).toBeTruthy();

@@ -1,7 +1,7 @@
 import { CELLS, ELEMENTS, FIRST_WAVE_DELAY, START_SP } from './balance';
 import { EMPTY, KIND_COUNT } from './kinds';
 
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 export const ENEMY_POOL = 128;
 export const PROJECTILE_POOL = 256;
 
@@ -66,6 +66,10 @@ export interface State {
   enemyCount: number;
   projectiles: Projectile[];
   kills: number;
+  /** 고른 카드 코드 (cards.ts) */
+  picks: number[];
+  /** 제시 중인 카드. 비어 있지 않으면 sim이 멈춘다 */
+  cardOffer: number[];
   over: boolean;
   overReason: '' | 'overrun' | 'boss';
 }
@@ -104,6 +108,8 @@ export function createState(seed: number): State {
     enemyCount: 0,
     projectiles: Array.from({ length: PROJECTILE_POOL }, newProjectile),
     kills: 0,
+    picks: [],
+    cardOffer: [],
     over: false,
     overReason: '',
   };
@@ -121,7 +127,8 @@ export type Command =
   | { type: 'gamble'; option: number }
   | { type: 'upgrade'; element: number }
   | { type: 'craft'; mythic: number }
-  | { type: 'skipWave' };
+  | { type: 'skipWave' }
+  | { type: 'pickCard'; index: number };
 
 /** cell -1 = 서랍 */
 export type GameEvent =
@@ -135,6 +142,8 @@ export type GameEvent =
   | { type: 'stones'; amount: number }
   | { type: 'bossKilled'; wave: number }
   | { type: 'waveClear'; wave: number; sp: number }
+  | { type: 'cardOffer'; wave: number }
+  | { type: 'card'; code: number }
   | { type: 'gameOver'; wave: number; reason: 'overrun' | 'boss' }
   | { type: 'reject'; reason: string };
 

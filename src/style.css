@@ -140,6 +140,31 @@ button:disabled {
   border-color: var(--good);
   box-shadow: 0 0 12px rgba(78, 230, 160, 0.5);
 }
+.row.card {
+  border-width: 2px;
+  cursor: pointer;
+}
+.row.card.rarity-1 {
+  border-color: var(--e1);
+}
+.row.card.rarity-2 {
+  border-color: var(--e4);
+  box-shadow: 0 0 14px rgba(255, 228, 92, 0.25);
+}
+.card-rarity {
+  font-size: 11px;
+  color: var(--dim);
+}
+.rarity-1 .card-rarity {
+  color: var(--e1);
+}
+.rarity-2 .card-rarity {
+  color: var(--e4);
+}
+.card-name {
+  font-size: 16px;
+  font-weight: 800;
+}
 .row.target {
   border-color: var(--good);
 }

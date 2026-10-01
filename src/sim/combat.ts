@@ -1,5 +1,5 @@
 import {
-  BEAM_SHRED, BOSS_CC_MULT, BURN_RATIO, BURN_TIME, CELLS, CHAIN_COUNT, CHAIN_FALLOFF, CHAIN_RANGE, COLS,
+  BEAM_SHRED, BOSS_CC_MULT, FROST_STUN, BURN_RATIO, BURN_TIME, CELLS, CHAIN_COUNT, CHAIN_FALLOFF, CHAIN_RANGE, COLS,
   DARK, DT, EARTH, ELEMENT_COLORS, ELEMENT_STATS, FIRE, FROST_SLOW, FROST_TIME, HIT_RADIUS, LIGHT,
   LIGHT_AURA_CAP, MYTHICS, PATH_LENGTH, PATH_MARGIN, PATH_SIDE, PROJECTILE_SPEED, QUAKE_STUN, SHRED_TIME,
   SLOW_TIME, STONES_PER_BOSS, STUN_TIME, TIER_DMG_MULT, TIER_RANGE_BONUS, WATER, WIND, WIND_CHAIN_FALLOFF,
@@ -7,9 +7,10 @@ import {
   windChains,
 } from './balance';
 import { EMPTY, isMythic, kindElement, kindTier, mythicIndex } from './kinds';
+import { mods } from './cards';
 import { random } from './rng';
 import { checkWaveClear } from './waves';
-import type { Enemy, World } from './state';
+import type { Enemy, State, World } from './state';
 
 export const cellX = (cell: number) => (cell % COLS) + 0.5;
 export const cellY = (cell: number) => Math.floor(cell / COLS) + 0.5;
@@ -34,18 +35,37 @@ export function pathPoint(dist: number, out: { x: number; y: number }): void {
   }
 }
 
-export function unitRange(kind: number): number {
-  if (isMythic(kind)) return MYTHICS[mythicIndex(kind)].range;
-  return ELEMENT_STATS[kindElement(kind)].range + TIER_RANGE_BONUS * (kindTier(kind) - 1);
+export function unitRange(kind: number, s: State): number {
+  const bonus = mods(s).range;
+  if (isMythic(kind)) return MYTHICS[mythicIndex(kind)].range + bonus;
+  return ELEMENT_STATS[kindElement(kind)].range + TIER_RANGE_BONUS * (kindTier(kind) - 1) + bonus;
+}
+
+/** 강화·카드 반영 1회 공격 데미지 (aura: 빛 버프) */
+export function unitDamage(kind: number, s: State, aura = 0): number {
+  const md = mods(s);
+  if (isMythic(kind)) {
+    const m = MYTHICS[mythicIndex(kind)];
+    return m.damage * upgradeMult(s.upgrades[m.recipe[0][0]]) * (1 + md.mythicDmg) * (1 + aura);
+  }
+  const el = kindElement(kind);
+  return ELEMENT_STATS[el].damage * TIER_DMG_MULT[kindTier(kind)] * upgradeMult(s.upgrades[el]) * (1 + md.dmg[el]) * (1 + aura);
+}
+
+export function unitInterval(kind: number, s: State): number {
+  if (isMythic(kind)) return MYTHICS[mythicIndex(kind)].interval;
+  const el = kindElement(kind);
+  return ELEMENT_STATS[el].interval / (1 + mods(s).speed[el]);
 }
 
 export function computeAura(w: World): void {
   const { field } = w.s;
+  const mult = mods(w.s).auraMult;
   w.aura.fill(0);
   for (let c = 0; c < CELLS; c++) {
     const k = field[c];
     if (k === EMPTY || kindElement(k) !== LIGHT) continue;
-    const bonus = lightAura(kindTier(k));
+    const bonus = lightAura(kindTier(k)) * mult;
     const cx = c % COLS;
     const cy = Math.floor(c / COLS);
     for (let dy = -1; dy <= 1; dy++) {
@@ -54,7 +74,7 @@ export function computeAura(w: World): void {
         const y = cy + dy;
         if ((dx === 0 && dy === 0) || x < 0 || y < 0 || x >= COLS || y >= COLS) continue;
         const n = y * COLS + x;
-        w.aura[n] = Math.min(LIGHT_AURA_CAP, w.aura[n] + bonus);
+        w.aura[n] = Math.min(LIGHT_AURA_CAP * mult, w.aura[n] + bonus);
       }
     }
   }
@@ -110,7 +130,7 @@ function kill(w: World, e: Enemy): void {
     w.emit({ type: 'bossKilled', wave: s.wave });
     w.emit({ type: 'stones', amount: STONES_PER_BOSS });
   } else {
-    s.sp += killSp(s.wave);
+    s.sp += killSp(s.wave) + mods(s).killSp;
   }
   checkWaveClear(w, e.wave);
   w.fx({ t: 'death', x: e.x, y: e.y, boss: e.boss });
@@ -120,7 +140,8 @@ function kill(w: World, e: Enemy): void {
 export function damage(w: World, e: Enemy, amount: number, element: number): void {
   if (!e.alive) return;
   const armor = Math.max(0, e.armor - (e.shredT > 0 ? e.shred : 0));
-  e.hp -= amount * affinity(element, e.element) * (1 - armor);
+  const boss = e.boss ? 1 + mods(w.s).bossDmg : 1;
+  e.hp -= amount * boss * affinity(element, e.element) * (1 - armor);
   if (e.hp <= 0) kill(w, e);
 }
 
@@ -174,9 +195,7 @@ const hitBuf: number[] = new Array(CHAIN_COUNT + 2).fill(-1);
 
 function fireRegular(w: World, cell: number, kind: number, target: number): void {
   const s = w.s;
-  const el = kindElement(kind);
-  const tier = kindTier(kind);
-  const dmg = ELEMENT_STATS[el].damage * TIER_DMG_MULT[tier] * upgradeMult(s.upgrades[el]) * (1 + w.aura[cell]);
+  const dmg = unitDamage(kind, s, w.aura[cell]);
   let p = null;
   for (const q of s.projectiles) {
     if (!q.alive) {
@@ -203,19 +222,21 @@ function onHit(w: World, kind: number, dmg: number, target: number): void {
   const e = s.enemies[target];
   const el = kindElement(kind);
   const tier = kindTier(kind);
+  const md = mods(s);
   w.fx({ t: 'hit', x: e.x, y: e.y, color: ELEMENT_COLORS[el] });
   switch (el) {
     case FIRE:
-      applyBurn(e, dmg * BURN_RATIO);
+      applyBurn(e, dmg * BURN_RATIO * md.burnMult);
       break;
     case WATER:
       applySlow(e, slowAmount(tier), SLOW_TIME);
+      if (md.frostStunChance > 0 && random(s) < md.frostStunChance) applyStun(e, FROST_STUN);
       break;
     case EARTH:
       if (random(s) < stunChance(tier)) applyStun(e, STUN_TIME);
       break;
     case DARK:
-      applyShred(e, darkShred(tier));
+      applyShred(e, darkShred(tier) + md.shredAdd);
       break;
   }
   const x = e.x;
@@ -226,7 +247,7 @@ function onHit(w: World, kind: number, dmg: number, target: number): void {
     let fromX = x;
     let fromY = y;
     let d = dmg;
-    const n = windChains(tier);
+    const n = windChains(tier) + md.windChains;
     for (let k = 1; k <= n; k++) {
       const j = nearestExcept(w, fromX, fromY, WIND_CHAIN_RANGE, hitBuf, k);
       if (j < 0) break;
@@ -246,7 +267,7 @@ function fireMythic(w: World, cell: number, kind: number): boolean {
   const m = MYTHICS[mythicIndex(kind)];
   const x = cellX(cell);
   const y = cellY(cell);
-  const dmg = m.damage * upgradeMult(s.upgrades[m.recipe[0][0]]) * (1 + w.aura[cell]);
+  const dmg = unitDamage(kind, s, w.aura[cell]);
   const front = frontInRange(w, x, y, m.range);
   if (front < 0) return false;
 
@@ -285,7 +306,7 @@ function fireMythic(w: World, cell: number, kind: number): boolean {
     const dx = e.x - x;
     const dy = e.y - y;
     if (dx * dx + dy * dy > r2) continue;
-    if (m.pattern === 'nova') applyBurn(e, dmg * BURN_RATIO * 0.5);
+    if (m.pattern === 'nova') applyBurn(e, dmg * BURN_RATIO * 0.5 * mods(s).burnMult);
     else if (m.pattern === 'quake') applyStun(e, QUAKE_STUN);
     else applySlow(e, FROST_SLOW, FROST_TIME);
     damage(w, e, dmg, -1);
@@ -303,17 +324,17 @@ export function stepUnits(w: World): void {
       if (cooldown[cell] > 0) continue;
     }
     if (isMythic(kind)) {
-      if (fireMythic(w, cell, kind)) cooldown[cell] += MYTHICS[mythicIndex(kind)].interval;
+      if (fireMythic(w, cell, kind)) cooldown[cell] += unitInterval(kind, w.s);
       else cooldown[cell] = 0;
       continue;
     }
-    const target = frontInRange(w, cellX(cell), cellY(cell), unitRange(kind));
+    const target = frontInRange(w, cellX(cell), cellY(cell), unitRange(kind, w.s));
     if (target < 0) {
       cooldown[cell] = 0;
       continue;
     }
     fireRegular(w, cell, kind, target);
-    cooldown[cell] += ELEMENT_STATS[kindElement(kind)].interval;
+    cooldown[cell] += unitInterval(kind, w.s);
   }
 }
 

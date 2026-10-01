@@ -4,6 +4,7 @@ import {
   enemyArmor, enemyHp,
 } from './balance';
 import { pathPoint } from './combat';
+import { CARD_EVERY, mods, offerCards } from './cards';
 import { randInt } from './rng';
 import type { Enemy, World } from './state';
 
@@ -62,6 +63,7 @@ function startWave(w: World): void {
   }
   w.touch(false);
   w.emit({ type: 'wave', wave: s.wave, element: s.waveElement, boss });
+  if (s.wave % CARD_EVERY === 0) offerCards(w);
 }
 
 export function stepWaves(w: World): void {
@@ -91,8 +93,9 @@ export function checkWaveClear(w: World, wave: number): void {
   const s = w.s;
   if (wave === s.wave && s.spawnLeft > 0) return;
   for (const e of s.enemies) if (e.alive && e.wave === wave) return;
-  s.sp += WAVE_CLEAR_SP;
-  w.emit({ type: 'waveClear', wave, sp: WAVE_CLEAR_SP });
+  const sp = WAVE_CLEAR_SP + mods(s).clearSp;
+  s.sp += sp;
+  w.emit({ type: 'waveClear', wave, sp });
 }
 
 /** 필드에 적이 없고 스폰할 적도 남지 않았으면 다음 웨이브를 바로 시작할 수 있다 */

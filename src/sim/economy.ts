@@ -4,6 +4,7 @@ import {
 import { emptyCells, hasSpace, placeNew, setCell } from './board';
 import { EMPTY, kindOf, mythicKind } from './kinds';
 import { random, randInt } from './rng';
+import { mods } from './cards';
 import type { State, World } from './state';
 
 export function summon(w: World): boolean {
@@ -11,7 +12,7 @@ export function summon(w: World): boolean {
   if (s.sp < SUMMON_COST) return w.reject('SP가 부족해요');
   if (!hasSpace(s)) return w.reject('필드와 서랍이 가득 찼어요');
   const element = randInt(s, ELEMENTS);
-  const tier = random(s) < SUMMON_TIER2_CHANCE ? 2 : 1;
+  const tier = random(s) < SUMMON_TIER2_CHANCE + mods(s).tier2Chance ? 2 : 1;
   const kind = kindOf(element, tier);
   s.sp -= SUMMON_COST;
   const cell = placeNew(w, kind)!;

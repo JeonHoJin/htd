@@ -1,5 +1,6 @@
 import { CELLS, COLS, MYTHICS, ROWS, SUMMON_COST } from './balance';
-import { hasSpace } from './board';
+import { drawerCap, drawerTotal, hasSpace } from './board';
+import { CARDS, cardOf, elementOf } from './cards';
 import { recipeStatus } from './economy';
 import type { Game } from './game';
 import { EMPTY, KIND_COUNT, canMerge, kindElement, kindOf, kindTier } from './kinds';
@@ -14,11 +15,13 @@ export interface AutoSettings {
   place: boolean;
   /** 적을 모두 처치하면 대기 시간 없이 다음 웨이브 */
   skip: boolean;
+  /** 카드가 제시되면 알아서 고른다 */
+  cards: boolean;
   /** 목표 신화. -1 = 완성에 가장 가까운 신화 */
   target: number;
 }
 
-export const defaultAuto = (): AutoSettings => ({ enabled: false, summon: true, merge: true, place: true, skip: true, target: -1 });
+export const defaultAuto = (): AutoSettings => ({ enabled: false, summon: true, merge: true, place: true, skip: true, cards: false, target: -1 });
 
 function ownedCounts(s: State): number[] {
   const count = s.drawer.slice();
@@ -125,6 +128,29 @@ function placeOnce(g: Game): boolean {
   return g.command({ type: 'move', from: { area: 'drawer', kind: best }, to: { area: 'field', cell } });
 }
 
+/** 카드 점수: 등급 + 목표 신화·주력 속성과 맞는 속성 카드 우대 */
+export function pickCardIndex(s: State, cfg: AutoSettings): number {
+  const target = pickTarget(s, cfg);
+  const wanted = new Set(MYTHICS[target].recipe.map(([el]) => el));
+  const count = new Array(6).fill(0);
+  for (const k of s.field) if (k !== EMPTY && kindElement(k) >= 0) count[kindElement(k)]++;
+  const main = count.indexOf(Math.max(...count));
+  let best = 0;
+  let bestScore = -Infinity;
+  s.cardOffer.forEach((code, i) => {
+    const def = CARDS[cardOf(code)];
+    let score = def.rarity + 1;
+    if (def.perElement) score += (wanted.has(elementOf(code)) ? 2 : 0) + (elementOf(code) === main ? 1 : 0);
+    if (def.name === '큰 서랍' && drawerTotal(s) < drawerCap(s) / 2) score -= 2;
+    if (def.name === '재활용') score -= 1;
+    if (score > bestScore) {
+      best = i;
+      bestScore = score;
+    }
+  });
+  return best;
+}
+
 const LOOP_GUARD = 64;
 
 /** 한 번의 자동 판단. 조합 → 합성 → 배치 → 소환 → (새 유닛으로) 합성 → 배치 */
@@ -141,6 +167,7 @@ export function autoTurn(g: Game, cfg: AutoSettings): void {
 
 function autoSteps(g: Game, cfg: AutoSettings): void {
   const s = g.s;
+  if (cfg.cards && s.cardOffer.length > 0) g.command({ type: 'pickCard', index: pickCardIndex(s, cfg) });
   const run = (f: () => boolean) => {
     for (let i = 0; i < LOOP_GUARD && f(); i++);
   };

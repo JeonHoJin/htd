@@ -1,4 +1,5 @@
 import { CELLS, DRAWER_CAP, ELEMENTS, UPGRADE_MAX } from './balance';
+import { CARDS, DRAWER_CARD, OFFER_SIZE, cardOf, isValidCode, pickCard } from './cards';
 import { drawerMerge, move, sell } from './board';
 import { computeAura, stepEnemies, stepProjectiles, stepUnits } from './combat';
 import { craft, gamble, summon, upgrade } from './economy';
@@ -32,7 +33,7 @@ export class Game implements World {
   }
 
   step(): void {
-    if (this.s.over) return;
+    if (this.s.over || this.s.cardOffer.length > 0) return; // 카드 선택 대기 중에는 멈춘다
     if (this.auraDirty) {
       computeAura(this);
       this.auraDirty = false;
@@ -57,6 +58,7 @@ export class Game implements World {
       case 'upgrade': return upgrade(this, c.element);
       case 'craft': return craft(this, c.mythic);
       case 'skipWave': return skipWave(this);
+      case 'pickCard': return pickCard(this, c.index);
     }
     return false;
   }
@@ -144,11 +146,22 @@ function validateEnemy(v: unknown): Enemy | null {
 export function validateState(v: unknown): State | null {
   if (typeof v !== 'object' || v === null) return null;
   const r = v as Record<string, unknown>;
-  if (r.v !== STATE_VERSION) return null;
+  // v2 → v3: 카드 필드가 없으면 빈 상태로 이전한다
+  if (r.v === 2) {
+    r.picks = [];
+    r.cardOffer = [];
+  } else if (r.v !== STATE_VERSION) return null;
+  if (!Array.isArray(r.picks) || r.picks.length > 500 || !r.picks.every(isValidCode)) return null;
+  if (!Array.isArray(r.cardOffer) || r.cardOffer.length > OFFER_SIZE || !r.cardOffer.every(isValidCode)) return null;
+  for (let c = 0; c < CARDS.length; c++) {
+    const max = CARDS[c].max;
+    if (max !== undefined && (r.picks as number[]).filter((p) => cardOf(p) === c).length > max) return null;
+  }
+  const cap = DRAWER_CAP + 5 * (r.picks as number[]).filter((p) => cardOf(p) === DRAWER_CARD).length;
   if (!numArray(r.field, CELLS, (k) => k === EMPTY || isValidKind(k as number))) return null;
   if (!numArray(r.cooldown, CELLS, isNum)) return null;
-  if (!numArray(r.drawer, KIND_COUNT, (n) => isInt(n, 0, DRAWER_CAP))) return null;
-  if ((r.drawer as number[]).reduce((a, b) => a + b, 0) > DRAWER_CAP) return null;
+  if (!numArray(r.drawer, KIND_COUNT, (n) => isInt(n, 0, cap))) return null;
+  if ((r.drawer as number[]).reduce((a, b) => a + b, 0) > cap) return null;
   if (!numArray(r.upgrades, ELEMENTS, (n) => isInt(n, 0, UPGRADE_MAX))) return null;
   for (const k of ['sp', 'stones', 'wave', 'nextEnemyId', 'kills', 'tick'] as const) {
     if (!isInt(r[k], 0, 2 ** 31)) return null;
@@ -187,5 +200,7 @@ export function validateState(v: unknown): State | null {
   s.bossTimer = r.bossTimer as number;
   s.nextEnemyId = r.nextEnemyId as number;
   s.kills = r.kills as number;
+  s.picks = r.picks as number[];
+  s.cardOffer = r.cardOffer as number[];
   return s;
 }

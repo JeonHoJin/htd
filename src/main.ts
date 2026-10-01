@@ -130,6 +130,8 @@ async function start(): Promise<void> {
       }
       if (n === MAX_STEPS_PER_FRAME) acc = 0;
     }
+    // 카드 선택 대기 중에는 sim이 멈춰 tick이 오르지 않으므로 자동 선택은 프레임마다 확인한다
+    if (meta.auto.enabled && meta.auto.cards && game.s.cardOffer.length > 0) autoTurn(game, meta.auto);
     input.sync();
     renderer.render(game, running ? acc / DT : 1, input.view, running ? dt : 0);
 

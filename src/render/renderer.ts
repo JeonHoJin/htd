@@ -1,8 +1,8 @@
 import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import {
-  CELLS, COLS, ELEMENT_COLORS, ELEMENT_STATS, MYTHICS, PATH_LENGTH, PATH_MARGIN, PATH_SIDE, ROWS,
+  CELLS, COLS, ELEMENT_COLORS, MYTHICS, PATH_LENGTH, PATH_MARGIN, PATH_SIDE, ROWS,
 } from '../sim/balance';
-import { cellX, cellY, unitRange } from '../sim/combat';
+import { cellX, cellY, unitInterval, unitRange } from '../sim/combat';
 import type { Game } from '../sim/game';
 import { EMPTY, isMythic, kindElement, kindTier, mythicIndex } from '../sim/kinds';
 import { ENEMY_POOL, PROJECTILE_POOL, type Fx } from '../sim/state';
@@ -230,7 +230,7 @@ export class Renderer {
       unit.texture = this.tex.shapes[mythic ? 0 : tier];
       unit.tint = color;
       glow.tint = color;
-      const interval = mythic ? MYTHICS[mythicIndex(kind)].interval : ELEMENT_STATS[kindElement(kind)].interval;
+      const interval = unitInterval(kind, s);
       const recoil = Math.max(0, s.cooldown[c] / interval - 0.85) * 0.6;
       const size = UNIT_SIZE * (1 + recoil + this.flash[c] * 0.25);
       unit.setSize(size);
@@ -307,7 +307,7 @@ export class Renderer {
     this.rangeG.clear();
     if (kind === EMPTY) return;
     this.rangeG
-      .circle(cellX(cell) * K, cellY(cell) * K, unitRange(kind) * K)
+      .circle(cellX(cell) * K, cellY(cell) * K, unitRange(kind, game.s) * K)
       .fill({ color: kindColor(kind), alpha: 0.07 })
       .stroke({ width: 0.03 * K, color: kindColor(kind), alpha: 0.6 });
   }

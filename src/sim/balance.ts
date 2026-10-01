@@ -141,3 +141,5 @@ export const CHAIN_RANGE = 1.8;
 export const CHAIN_FALLOFF = 0.8;
 export const FROST_SLOW = 0.5;
 export const FROST_TIME = 2;
+/** 영구동토 카드: 물 공격 기절 시간 */
+export const FROST_STUN = 0.5;

@@ -1,20 +1,23 @@
 import {
-  DRAWER_CAP, ELEMENT_ICONS, ELEMENT_NAMES, ELEMENT_STATS, ELEMENTS, GAMBLE, LOSE_ENEMY_COUNT, MYTHICS,
-  SUMMON_COST, TIER_DMG_MULT, TIER_NAMES, UPGRADE_MAX, upgradeCost, upgradeMult,
+  ELEMENT_ICONS, ELEMENT_NAMES, ELEMENTS, GAMBLE, LOSE_ENEMY_COUNT, MYTHICS,
+  SUMMON_COST, TIER_NAMES, UPGRADE_MAX, upgradeCost, upgradeMult,
 } from '../sim/balance';
-import { drawerTotal, hasSpace, refundOf } from '../sim/board';
-import { unitRange } from '../sim/combat';
+import { drawerCap, drawerTotal, hasSpace, refundOf } from '../sim/board';
+import { unitDamage, unitRange } from '../sim/combat';
 import { pickTarget } from '../sim/auto';
+import { CARDS, RARITY_NAMES, cardDesc, cardName, cardOf } from '../sim/cards';
 import { canSkipWave } from '../sim/waves';
 import { craftable, recipeStatus } from '../sim/economy';
 import type { Game } from '../sim/game';
-import { EMPTY, KIND_COUNT, canMerge, isMythic, kindElement, kindOf, kindTier, mythicIndex, mythicKind } from '../sim/kinds';
+import { EMPTY, KIND_COUNT, canMerge, isMythic, kindElement, kindOf, mythicIndex, mythicKind } from '../sim/kinds';
 import type { Command, GameEvent, Slot } from '../sim/state';
 import type { Meta } from '../storage';
 import { h, shapeClass, shapeEl, unitName } from './icons';
 
 export type Selection = Slot | null;
-type SheetKind = 'gamble' | 'upgrade' | 'craft' | 'pause' | 'over';
+type SheetKind = 'gamble' | 'upgrade' | 'craft' | 'pause' | 'over' | 'cards';
+/** 닫기 버튼으로 닫을 수 없는 시트 */
+const LOCKED: SheetKind[] = ['over', 'cards'];
 
 export interface UiActions {
   command(c: Command): boolean;
@@ -157,12 +160,16 @@ export class UI {
       this.el.gamble.classList.toggle('glow', s.stones >= 1);
       if (this.sheet && this.sheet !== 'pause' && this.sheet !== 'over') this.renderSheet();
     }
+    // 카드 제시: 자동 선택이 아니면 카드 시트를 띄운다 (일시정지·게임오버 시트가 우선)
+    const offer = s.cardOffer.length > 0 && !(this.meta.auto.enabled && this.meta.auto.cards);
+    if (offer && this.sheet !== 'cards' && this.sheet !== 'pause' && this.sheet !== 'over') this.openSheet('cards');
+    if (!offer && this.sheet === 'cards') this.forceCloseSheet();
     for (const r of this.refreshers) r();
   }
 
   private renderDrawer(): void {
     const s = this.game().s;
-    setText(this.el.drawerCount, `${drawerTotal(s)}/${DRAWER_CAP}`);
+    setText(this.el.drawerCount, `${drawerTotal(s)}/${drawerCap(s)}`);
     const list = this.el.drawerList;
     list.replaceChildren();
     for (let k = 0; k < KIND_COUNT; k++) {
@@ -196,12 +203,10 @@ export class UI {
     this.el.bar.classList.add('selecting');
     this.el.selIcon.className = shapeClass(kind);
     setText(this.el.selName, unitName(kind) + (count > 1 ? ` ×${count}` : ''));
-    const dmg = isMythic(kind)
-      ? MYTHICS[mythicIndex(kind)].damage * upgradeMult(s.upgrades[MYTHICS[mythicIndex(kind)].recipe[0][0]])
-      : ELEMENT_STATS[kindElement(kind)].damage * TIER_DMG_MULT[kindTier(kind)] * upgradeMult(s.upgrades[kindElement(kind)]);
+    const dmg = unitDamage(kind, s, sel?.area === 'field' ? this.game().aura[sel.cell] : 0);
     const effect = isMythic(kind) ? PATTERNS[MYTHICS[mythicIndex(kind)].pattern] : EFFECTS[kindElement(kind)];
-    setText(this.el.selStats, `공격 ${Math.round(dmg)} · 사거리 ${unitRange(kind).toFixed(1)} · ${effect}`);
-    setText(this.el.selSell, `판매 +${refundOf(kind)}`);
+    setText(this.el.selStats, `공격 ${Math.round(dmg)} · 사거리 ${unitRange(kind, s).toFixed(1)} · ${effect}`);
+    setText(this.el.selSell, `판매 +${refundOf(kind, s)}`);
     this.el.selMerge.hidden = !(sel?.area === 'drawer' && count >= 2 && canMerge(kind));
   }
 
@@ -215,11 +220,12 @@ export class UI {
     this.confirmNewGame = false;
     if (kind === 'pause' || kind === 'over') this.actions.setPaused(true);
     this.el.sheet.hidden = false;
+    $('sheet-close').hidden = LOCKED.includes(kind);
     this.renderSheet();
   }
 
   closeSheet(): void {
-    if (this.sheet === 'over') return;
+    if (this.sheet && LOCKED.includes(this.sheet)) return;
     const wasPause = this.sheet === 'pause';
     this.sheet = null;
     this.refreshers = [];
@@ -237,6 +243,7 @@ export class UI {
       case 'craft': return this.craftSheet(body);
       case 'pause': return this.pauseSheet(body);
       case 'over': return this.overSheet(body);
+      case 'cards': return this.cardsSheet(body);
     }
   }
 
@@ -363,6 +370,7 @@ export class UI {
       ['merge', '자동 합성·조합'],
       ['place', '자동 배치'],
       ['skip', '자동 다음 웨이브'],
+      ['cards', '자동 카드 선택'],
     ] as const).map(([key, label]) => {
       const btn = h('button', { className: 'btn', text: `${label} ${this.meta.auto[key] ? '켬' : '끔'}` });
       btn.addEventListener('click', () => {
@@ -378,7 +386,7 @@ export class UI {
         h('div', { className: 'chips' }, toggles),
       ]),
     ]);
-    body.append(resume, speed, fps, autoCard, restart, this.helpCard());
+    body.append(resume, speed, fps, autoCard, this.myCards(), restart, this.helpCard());
   }
 
   private helpCard(): HTMLElement {
@@ -388,6 +396,7 @@ export class UI {
       '이동: 빈 칸으로 끌면 이동, 다른 도형 위로 끌면 자리를 바꿔요. 서랍으로 끌면 보관해요.',
       '판매: 도형을 탭한 뒤 판매 버튼을 눌러요.',
       '웨이브: 적을 모두 잡으면 위의 ▶ 바로 시작으로 대기 없이 다음 웨이브를 불러요.',
+      '카드: 5웨이브마다 3장 중 1장을 골라 이번 판을 강화해요. 내 카드는 이 메뉴에서 볼 수 있어요.',
       '상성: 불>바람>땅>물>불, 빛↔암. 다음 웨이브 속성이 위에 보여요.',
       `패배: 적이 ${LOSE_ENEMY_COUNT}마리 쌓이거나, 보스를 60초 안에 못 잡으면 끝나요.`,
     ];
@@ -407,6 +416,45 @@ export class UI {
       ]),
       again,
     );
+  }
+
+  private cardsSheet(body: HTMLElement): void {
+    const s = this.game().s;
+    setText(this.el.sheetTitle, `카드 선택 · 웨이브 ${s.wave}`);
+    s.cardOffer.forEach((code, i) => {
+      const def = CARDS[cardOf(code)];
+      const btn = h('button', { className: 'btn go', text: '선택' });
+      btn.addEventListener('click', () => this.actions.command({ type: 'pickCard', index: i }));
+      const row = h('div', { className: `row card rarity-${def.rarity}` }, [
+        h('div', { className: 'grow' }, [
+          h('div', { className: 'card-rarity', text: RARITY_NAMES[def.rarity] }),
+          h('div', { className: 'card-name', text: cardName(code) }),
+          h('div', { className: 'dim', text: cardDesc(code) }),
+        ]),
+        btn,
+      ]);
+      row.addEventListener('click', (e) => {
+        if (e.target !== btn) btn.click();
+      });
+      body.append(row);
+    });
+    body.append(h('div', { className: 'dim', text: '고르는 동안 게임이 멈춰 있어요. 같은 카드를 또 고르면 효과가 쌓여요.' }));
+  }
+
+  private myCards(): HTMLElement {
+    const s = this.game().s;
+    const counts = new Map<string, number>();
+    for (const code of s.picks) {
+      const label = `${cardName(code)} · ${cardDesc(code)}`;
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+    const lines = [...counts].map(([label, n]) => h('div', { text: n > 1 ? `${label} ×${n}` : label }));
+    return h('div', { className: 'row' }, [
+      h('div', { className: 'grow' }, [
+        h('div', { text: `내 카드 ${s.picks.length}장` }),
+        h('div', { className: 'dim' }, lines.length ? lines : [h('div', { text: '5웨이브마다 카드를 골라요' })]),
+      ]),
+    ]);
   }
 
   forceCloseSheet(): void {
@@ -449,6 +497,9 @@ export class UI {
           break;
         case 'waveClear':
           this.toast(`웨이브 ${e.wave} 클리어 +${e.sp} SP`, 'good');
+          break;
+        case 'card':
+          this.toast(`카드: ${cardName(e.code)} — ${cardDesc(e.code)}`, CARDS[cardOf(e.code)].rarity === 2 ? 'gold' : 'good');
           break;
         case 'bossKilled':
           this.toast('보스 처치!', 'gold');

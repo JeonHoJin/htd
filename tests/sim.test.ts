@@ -347,6 +347,7 @@ describe('웨이브와 패배', () => {
     // 유닛이 없으니 보스를 잡을 수 없다. 일반 적 누적으로 먼저 지지 않도록 일반 적은 계속 제거한다
     const clearRegulars = () => {
       for (const e of g.s.enemies) if (!e.boss) e.alive = false;
+      if (g.s.cardOffer.length > 0) g.command({ type: 'pickCard', index: 0 });
     };
     const steps = (FIRST_WAVE_DELAY + WAVE_INTERVAL * (BOSS_EVERY - 1) + 0.1) * STEP_HZ;
     for (let i = 0; i < steps; i++) {
