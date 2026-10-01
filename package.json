@@ -1,0 +1,23 @@
+{
+  "name": "htd",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "balance": "vitest run --config scripts/vitest.balance.ts",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "pixi.js": "^8.21.0"
+  }
+}
